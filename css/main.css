@@ -1,0 +1,45 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #abdaf9;
+}
+
+h1 {
+    margin-bottom: 10px;
+}
+
+.container {
+    width: 90%;
+    margin: 0 auto;
+}
+
+.box {
+    background-color: #fff;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+}
+
+.button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #5b4fbc;
+    color: #fff;
+    border-radius: 5px;
+    margin: 4px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.favicon {
+    margin-right: 10px;
+    vertical-align: middle;
+    width: 25px;
+}

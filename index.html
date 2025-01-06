@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zerbaib Dashboard</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+        <script>
+            fetch('data.yml')
+                .then(response => response.text())
+                .then(yamlText => {
+                    const data = jsyaml.load(yamlText);
+                    const container = document.querySelector('.container');
+                    data.boxes.forEach(box => {
+                        const boxDiv = document.createElement('div');
+                        boxDiv.className = 'box';
+                        const title = document.createElement('h1');
+                        title.textContent = box.title;
+                        boxDiv.appendChild(title);
+                        box.buttons.forEach(button => {
+                            const buttonElement = document.createElement('a');
+                            buttonElement.href = button.url;
+                            buttonElement.target = '_blank';
+                            buttonElement.className = 'button';
+                            
+                            const favicon = document.createElement('img');
+                            favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(button.url).hostname}&sz=64`;
+                            favicon.alt = '';
+                            favicon.className = 'favicon';
+                            
+                            buttonElement.appendChild(favicon);
+                            buttonElement.appendChild(document.createTextNode(button.text));
+                            boxDiv.appendChild(buttonElement);
+                        });
+                        container.appendChild(boxDiv);
+                    });
+                })
+                .catch(error => console.error('Error loading YAML file:', error));
+        </script>
+    </div>
+</body>
+</html>
