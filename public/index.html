@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Statut des services</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/vendor/chart.js/chart.umd.min.js"></script>
+  <script type="module" src="/js/status.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Statut des services</h1>
+      <div class="sub" id="updated">Chargement…</div>
+    </div>
+    <div class="toolbar">
+      <span class="summary" id="summary"><span class="dot"></span><span>…</span></span>
+      <select class="btn" id="range" aria-label="Période">
+        <option value="1">1 h</option>
+        <option value="24" selected>24 h</option>
+        <option value="168">7 jours</option>
+      </select>
+    </div>
+  </header>
+  <main>
+    <div class="grid" id="grid"></div>
+  </main>
+  <footer>Actualisation automatique toutes les 30 secondes</footer>
+</body>
+</html>

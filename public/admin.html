@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Espace privé</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/vendor/xterm/css/xterm.css">
+  <script src="/vendor/chart.js/chart.umd.min.js"></script>
+  <script src="/vendor/xterm/lib/xterm.js"></script>
+  <script src="/vendor/xterm-fit/addon-fit.js"></script>
+  <script type="module" src="/js/admin.js"></script>
+</head>
+<body>
+  <!-- Connexion -->
+  <form class="login" id="login" hidden>
+    <h1>Espace privé</h1>
+    <label>Utilisateur <input name="username" autocomplete="username" required></label>
+    <label>Mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
+    <div class="error" id="login-error"></div>
+    <button class="btn primary" type="submit">Se connecter</button>
+    <a href="/" class="hint">← Page de statut publique</a>
+  </form>
+
+  <!-- Tableau de bord -->
+  <div id="app" hidden>
+    <header class="top">
+      <div>
+        <h1>Espace privé</h1>
+        <div class="sub" id="updated">Chargement…</div>
+      </div>
+      <div class="toolbar">
+        <span class="summary" id="summary"><span class="dot"></span><span>…</span></span>
+        <select class="btn" id="range" aria-label="Période">
+          <option value="1">1 h</option>
+          <option value="24" selected>24 h</option>
+          <option value="168">7 jours</option>
+        </select>
+        <button class="btn primary" id="add">+ Ajouter</button>
+        <a class="btn" href="/" target="_blank" rel="noopener">Page publique</a>
+        <button class="btn" id="logout">Déconnexion</button>
+      </div>
+    </header>
+    <main><div class="grid" id="grid"></div></main>
+  </div>
+
+  <!-- Formulaire service -->
+  <dialog id="dialog">
+    <form id="form" method="dialog">
+      <h2 id="form-title">Ajouter un service</h2>
+
+      <fieldset>
+        <legend>Surveillance</legend>
+        <label class="full">Nom <input name="name" required maxlength="100" placeholder="Serveur web"></label>
+        <label>Type
+          <select class="field" name="type">
+            <option value="http">HTTP(S)</option>
+            <option value="ping">Ping (ICMP / IP)</option>
+            <option value="tcp">Port TCP</option>
+            <option value="dns">DNS</option>
+          </select>
+        </label>
+        <label>Intervalle (s) <input name="interval_sec" type="number" min="10" max="86400" value="60"></label>
+        <label class="full">Cible <input name="target" required placeholder="https://exemple.fr"></label>
+        <span class="hint full" id="target-hint"></span>
+        <label data-for="tcp">Port <input name="port" type="number" min="1" max="65535"></label>
+        <label data-for="dns">Enregistrement
+          <select class="field" name="dns_record_type">
+            <option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option>
+            <option>TXT</option><option>NS</option><option>SRV</option><option>CAA</option><option>SOA</option>
+          </select>
+        </label>
+        <label data-for="dns">Valeur attendue (optionnel) <input name="dns_expected" placeholder="1.2.3.4"></label>
+        <label data-for="dns">Serveur DNS (optionnel) <input name="dns_server" placeholder="1.1.1.1"></label>
+        <label class="full">Lien ouvert au clic (optionnel) <input name="link_url" type="url" placeholder="https://exemple.fr"></label>
+        <label class="check full"><input type="checkbox" name="is_public" checked> Visible sur la page publique</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Accès serveur (privé)</legend>
+        <label>IP / hôte <input name="ip" placeholder="192.168.1.10"></label>
+        <label>Port SSH <input name="ssh_port" type="number" min="1" max="65535" value="22"></label>
+        <label>Utilisateur <input name="ssh_user" value="root" autocomplete="off"></label>
+        <label>Mot de passe <input name="ssh_password" type="password" autocomplete="new-password"></label>
+        <span class="hint full" id="pw-hint">Le mot de passe est chiffré (AES-256-GCM) avant d'être enregistré.</span>
+        <label class="check full" data-edit><input type="checkbox" name="clear_password"> Supprimer le mot de passe enregistré</label>
+        <label class="check full" data-edit><input type="checkbox" name="reset_fingerprint"> Réinitialiser l'empreinte SSH mémorisée</label>
+      </fieldset>
+
+      <div class="error" id="form-error"></div>
+      <div class="row-end">
+        <button class="btn" type="button" id="cancel">Annuler</button>
+        <button class="btn primary" type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
