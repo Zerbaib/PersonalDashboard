@@ -128,7 +128,7 @@ const fmtTime = (t, hours) => {
  * couleur = disponibilité (vert / jaune / rouge, neutre = pas de données).
  */
 export function renderChart(canvas, history, hours) {
-  const ok = css('--accent'), warn = css('--warn'), down = css('--down'), none = css('--none');
+  const ok = css('--ok'), warn = css('--warn'), down = css('--down'), none = css('--none');
   const max = Math.max(10, ...history.map((b) => b.latency || 0));
   const data = history.map((b) => (b.up == null ? max * 0.12 : b.up === 0 ? max : b.latency ?? max * 0.12));
   const colors = history.map((b) => (b.up == null ? none : b.up >= 0.999 ? ok : b.up > 0 ? warn : down));

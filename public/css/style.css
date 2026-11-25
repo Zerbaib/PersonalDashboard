@@ -1,40 +1,43 @@
 /* ==========================================================
    PersonalDashboard — thème terminal (version épurée du portfolio)
    ========================================================== */
+/* Palette Solarized — https://ethanschoonover.com/solarized/ */
 :root,
 :root[data-theme="dark"] {
-  --bg: #0b0e0c;
-  --bar: #141a16;
-  --line: #24332a;
-  --line-2: #2f4437;
-  --text: #c9d7cd;
-  --muted: #6e8576;
-  --accent: #50fa7b;
-  --accent-dim: rgba(80, 250, 123, .12);
-  --on-accent: #04170a;
-  --path: #6cb6ff;
-  --warn: #f1fa8c;
-  --down: #ff5555;
-  --none: #2f4437;
-  --code-bg: #070908;
+  --bg: #002b36;        /* base03 */
+  --bar: #073642;       /* base02 */
+  --line: #0b4250;
+  --line-2: #2c5866;
+  --text: #839496;      /* base0 */
+  --strong: #93a1a1;    /* base1 */
+  --muted: #657b83;     /* base00 */
+  --accent: #268bd2;    /* blue */
+  --on-accent: #fdf6e3;
+  --ok: #859900;        /* green */
+  --path: #2aa198;      /* cyan */
+  --warn: #b58900;      /* yellow */
+  --down: #dc322f;      /* red */
+  --none: #0b4250;
+  --code-bg: #00212b;
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #f4f3ec;
-  --bar: #e7e6dc;
-  --line: #cfd2c4;
-  --line-2: #b9bfad;
-  --text: #1e2620;
-  --muted: #66705f;
-  --accent: #0f7a3a;
-  --accent-dim: rgba(15, 122, 58, .10);
-  --on-accent: #ffffff;
-  --path: #1d4ed8;
-  --warn: #9a6a00;
-  --down: #c62828;
-  --none: #cfd2c4;
-  --code-bg: #0d1210;
+  --bg: #fdf6e3;        /* base3 */
+  --bar: #eee8d5;       /* base2 */
+  --line: #e6dfc8;
+  --line-2: #c9c3ad;
+  --text: #586e75;      /* base01 */
+  --strong: #073642;    /* base02 */
+  --muted: #7b8c91;
+  --accent: #268bd2;
+  --on-accent: #fdf6e3;
+  --ok: #859900;
+  --path: #2aa198;
+  --warn: #b58900;
+  --down: #dc322f;
+  --none: #e6dfc8;
+  --code-bg: #00212b;
   color-scheme: light;
 }
 
@@ -64,10 +67,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 .titlebar { position: sticky; top: 0; z-index: 50; background: var(--bar); border-bottom: 1px solid var(--line); }
 .titlebar-inner { max-width: 1200px; margin: 0 auto; padding: 8px 20px; display: flex; align-items: center; gap: 14px; }
 .dots { display: flex; gap: 7px; flex: none; }
-.dots i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
-.dots i:nth-child(2) { background: #febc2e; }
-.dots i:nth-child(3) { background: #28c840; }
-.title { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; min-width: 0; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--down); }
+.dots i:nth-child(2) { background: var(--warn); }
+.dots i:nth-child(3) { background: var(--ok); }
+.title { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; min-width: 0; color: var(--strong); }
 .title img { width: 18px; height: 18px; }
 .title-actions { display: flex; gap: 6px; flex: none; }
 
@@ -83,9 +86,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 :root[data-theme="dark"] .i-moon, :root[data-theme="light"] .i-sun { display: none; }
 
 /* ---------- Invite de commande ---------- */
-.cmd { margin: 28px 0 0; overflow-wrap: anywhere; }
+.cmd { margin: 28px 0 0; overflow-wrap: anywhere; color: var(--strong); }
 .ps1 { color: var(--muted); }
-.ps1 b { color: var(--accent); }
+.ps1 b { color: var(--ok); }
 .ps1 i { color: var(--path); font-style: normal; font-weight: 700; }
 
 /* ---------- Onglets de période ---------- */
@@ -141,13 +144,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 
 /* Ligne d'état façon systemctl */
 .state { font-size: 13px; }
-.state.up { color: var(--accent); }
+.state.up { color: var(--ok); }
 .state.down { color: var(--down); }
 .state.none { color: var(--muted); }
 
 .kv { display: flex; flex-wrap: wrap; gap: 2px 18px; font-size: 13px; }
 .kv span { color: var(--muted); }
-.kv b { color: var(--text); font-weight: 500; }
+.kv b { color: var(--strong); font-weight: 500; }
 
 .chart-box { position: relative; height: 80px; }
 .msg { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -201,10 +204,14 @@ fieldset .full { grid-column: 1 / -1; }
 .statusbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
   display: flex; align-items: center; height: 28px;
-  background: var(--accent); color: var(--on-accent); font-size: 12.5px; font-weight: 700;
+  background: var(--bar); color: var(--text); border-top: 1px solid var(--line);
+  font-size: 12.5px; font-weight: 700;
 }
-.statusbar.down { background: var(--down); color: #fff; }
-.sb-session { padding: 0 12px; height: 100%; display: flex; align-items: center; background: rgba(0, 0, 0, .18); flex: none; }
+.statusbar.down { background: var(--down); color: #fdf6e3; border-top-color: var(--down); }
+.sb-session { padding: 0 12px; height: 100%; display: flex; align-items: center; background: var(--accent); color: var(--on-accent); flex: none; }
+.statusbar.down .sb-session { background: rgba(0, 0, 0, .2); }
+.sb-main::first-letter { color: var(--ok); }
+.statusbar.down .sb-main::first-letter { color: inherit; }
 .sb-main { flex: 1; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .sb-right { padding: 0 12px; white-space: nowrap; flex: none; }
 

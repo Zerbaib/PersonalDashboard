@@ -216,7 +216,13 @@ function openTerminal(card) {
   const xterm = new Terminal({
     cursorBlink: true, fontSize: 13, scrollback: 5000,
     fontFamily: '"JetBrains Mono", ui-monospace, monospace',
-    theme: { background: '#070908', foreground: '#c9d7cd', cursor: '#50fa7b', selectionBackground: '#2f4437', green: '#50fa7b', brightGreen: '#69ff94' },
+    // Palette Solarized Dark
+    theme: {
+      background: '#00212b', foreground: '#839496', cursor: '#93a1a1', cursorAccent: '#00212b', selectionBackground: '#073642',
+      black: '#073642', red: '#dc322f', green: '#859900', yellow: '#b58900', blue: '#268bd2', magenta: '#d33682', cyan: '#2aa198', white: '#eee8d5',
+      brightBlack: '#586e75', brightRed: '#cb4b16', brightGreen: '#586e75', brightYellow: '#657b83',
+      brightBlue: '#839496', brightMagenta: '#6c71c4', brightCyan: '#93a1a1', brightWhite: '#fdf6e3',
+    },
   });
   const fit = new FitAddon.FitAddon();
   xterm.loadAddon(fit);
