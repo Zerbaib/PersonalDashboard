@@ -37,6 +37,7 @@ const nm = (p) => path.join(root, 'node_modules', p);
 app.use('/vendor/chart.js', express.static(nm('chart.js/dist')));
 app.use('/vendor/xterm', express.static(nm('@xterm/xterm')));
 app.use('/vendor/xterm-fit', express.static(nm('@xterm/addon-fit/lib')));
+app.use('/vendor/font', express.static(nm('@fontsource/jetbrains-mono')));
 app.get('/admin', (req, res) => res.sendFile(path.join(root, 'public', 'admin.html')));
 app.use(express.static(path.join(root, 'public'), { extensions: ['html'] }));
 

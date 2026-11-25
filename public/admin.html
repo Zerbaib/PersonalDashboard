@@ -1,10 +1,15 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Espace privé</title>
+  <title>zerbaib · admin</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <script src="/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/vendor/font/latin-400.css">
+  <link rel="stylesheet" href="/vendor/font/latin-500.css">
+  <link rel="stylesheet" href="/vendor/font/latin-700.css">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/vendor/xterm/css/xterm.css">
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
@@ -13,112 +18,134 @@
   <script type="module" src="/js/admin.js"></script>
 </head>
 <body>
+  <header class="titlebar">
+    <div class="titlebar-inner">
+      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="title"><img src="/img/logo.png" alt="">zerbaib@admin: ~ <span class="dim">— bash</span></span>
+      <div class="title-actions">
+        <span id="app-actions" hidden style="display:contents">
+          <button class="key" id="add" type="button" title="Ajouter un service">+<span class="label"> ajouter</span></button>
+          <button class="key" id="notif-btn" type="button" title="Notifications Discord">🔔<span class="label"> notifs</span></button>
+          <a class="key" href="/" target="_blank" rel="noopener" title="Page publique">↗<span class="label"> public</span></a>
+          <button class="key" id="logout" type="button" title="Déconnexion">exit</button>
+        </span>
+        <button class="key" id="theme-toggle" type="button" aria-label="Changer de thème" title="Thème">
+          <svg class="i-sun" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
   <!-- Connexion -->
-  <form class="login" id="login" hidden>
-    <h1>Espace privé</h1>
-    <label>Utilisateur <input name="username" autocomplete="username" required></label>
-    <label>Mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
-    <div class="error" id="login-error"></div>
-    <button class="btn primary" type="submit">Se connecter</button>
-    <a href="/" class="hint">← Page de statut publique</a>
-  </form>
+  <main class="login" id="login" hidden>
+    <div class="box">
+      <span class="box-title">login</span>
+      <form id="login-form">
+        <p class="cmd" style="margin:0"><span class="ps1"><b>zerbaib</b>@admin:<i>~</i>$</span> sudo -i</p>
+        <label>utilisateur <input name="username" autocomplete="username" required></label>
+        <label>mot de passe <input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="error" id="login-error"></div>
+        <div class="actions">
+          <button class="btn primary" type="submit">se connecter</button>
+          <a class="btn" href="/">page publique</a>
+        </div>
+      </form>
+    </div>
+  </main>
 
   <!-- Tableau de bord -->
-  <div id="app" hidden>
-    <header class="top">
-      <div>
-        <h1>Espace privé</h1>
-        <div class="sub" id="updated">Chargement…</div>
+  <main id="app" hidden>
+    <p class="cmd"><span class="ps1"><b>zerbaib</b>@admin:<i>~</i>#</span> systemctl status --all</p>
+    <div class="toolbar">
+      <div class="tabs" id="range" role="tablist" aria-label="Période">
+        <button class="tab" type="button" role="tab" data-hours="1">1h</button>
+        <button class="tab" type="button" role="tab" data-hours="24">24h</button>
+        <button class="tab" type="button" role="tab" data-hours="168">7j</button>
+        <button class="tab" type="button" role="tab" data-hours="720">30j</button>
+        <button class="tab" type="button" role="tab" data-hours="8760">1an</button>
       </div>
-      <div class="toolbar">
-        <span class="summary" id="summary"><span class="dot"></span><span>…</span></span>
-        <select class="btn" id="range" aria-label="Période">
-          <option value="1">1 h</option>
-          <option value="24" selected>24 h</option>
-          <option value="168">7 jours</option>
-          <option value="720">30 jours</option>
-          <option value="8760">1 an</option>
-        </select>
-        <button class="btn primary" id="add">+ Ajouter</button>
-        <button class="btn" id="notif-btn">🔔 Notifications</button>
-        <a class="btn" href="/" target="_blank" rel="noopener">Page publique</a>
-        <button class="btn" id="logout">Déconnexion</button>
-      </div>
-    </header>
-    <main><div class="grid" id="grid"></div></main>
-  </div>
+      <span class="updated" id="updated">chargement…</span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <nav class="statusbar" id="statusbar">
+    <span class="sb-session">[admin]</span>
+    <span class="sb-main" id="summary">…</span>
+    <span class="sb-right"><span class="sb-host" id="sb-host"></span> <span id="sb-clock">00:00</span></span>
+  </nav>
 
   <!-- Formulaire service -->
   <dialog id="dialog">
+    <span class="box-title" id="form-title">nouveau service</span>
     <form id="form" method="dialog">
-      <h2 id="form-title">Ajouter un service</h2>
-
       <fieldset>
-        <legend>Surveillance</legend>
-        <label class="full">Nom <input name="name" required maxlength="100" placeholder="Serveur web"></label>
-        <label>Type
+        <legend>surveillance</legend>
+        <label class="full">nom <input name="name" required maxlength="100" placeholder="nextcloud"></label>
+        <label>type
           <select class="field" name="type">
-            <option value="http">HTTP(S)</option>
-            <option value="ping">Ping (ICMP / IP)</option>
-            <option value="tcp">Port TCP</option>
-            <option value="dns">DNS</option>
+            <option value="http">http(s)</option>
+            <option value="ping">ping (icmp)</option>
+            <option value="tcp">port tcp</option>
+            <option value="dns">serveur dns</option>
           </select>
         </label>
-        <label>Intervalle (s) <input name="interval_sec" type="number" min="10" max="86400" value="60"></label>
-        <label class="full">Cible <input name="target" required placeholder="https://exemple.fr"></label>
-        <span class="hint full" id="target-hint"></span>
-        <label data-for="tcp dns">Port <input name="port" type="number" min="1" max="65535"></label>
-        <label data-for="dns">Domaine de test <input name="dns_query" placeholder="example.com"></label>
-        <label data-for="dns">Type de requête
+        <label>intervalle (s) <input name="interval_sec" type="number" min="10" max="86400" value="60"></label>
+        <label class="full">cible <input name="target" required placeholder="https://exemple.fr"></label>
+        <p class="hint full" id="target-hint"></p>
+        <label data-for="tcp dns">port <input name="port" type="number" min="1" max="65535"></label>
+        <label data-for="dns">domaine de test <input name="dns_query" placeholder="example.com"></label>
+        <label data-for="dns">type de requête
           <select class="field" name="dns_record_type">
             <option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option>
             <option>TXT</option><option>NS</option><option>SOA</option><option>CAA</option>
           </select>
         </label>
-        <label class="full">Lien ouvert au clic (optionnel) <input name="link_url" type="url" placeholder="https://exemple.fr"></label>
-        <label class="check full"><input type="checkbox" name="is_public" checked> Visible sur la page publique</label>
-        <label class="check full"><input type="checkbox" name="notify" checked> Notifier sur Discord quand le service tombe ou revient</label>
+        <label class="full">lien ouvert au clic <input name="link_url" type="url" placeholder="https://exemple.fr (optionnel)"></label>
+        <label class="check full"><input type="checkbox" name="is_public" checked> visible sur la page publique</label>
+        <label class="check full"><input type="checkbox" name="notify" checked> notifier sur discord (panne / retour)</label>
       </fieldset>
 
       <fieldset>
-        <legend>Accès serveur (privé)</legend>
-        <label>IP / hôte <input name="ip" placeholder="192.168.1.10"></label>
-        <label>Port SSH <input name="ssh_port" type="number" min="1" max="65535" value="22"></label>
-        <label>Utilisateur <input name="ssh_user" value="root" autocomplete="off"></label>
-        <label>Mot de passe <input name="ssh_password" type="password" autocomplete="new-password"></label>
-        <span class="hint full" id="pw-hint">Le mot de passe est chiffré (AES-256-GCM) avant d'être enregistré.</span>
-        <label class="check full" data-edit><input type="checkbox" name="clear_password"> Supprimer le mot de passe enregistré</label>
-        <label class="check full" data-edit><input type="checkbox" name="reset_fingerprint"> Réinitialiser l'empreinte SSH mémorisée</label>
+        <legend>accès serveur</legend>
+        <label>ip / hôte <input name="ip" placeholder="192.168.1.10"></label>
+        <label>port ssh <input name="ssh_port" type="number" min="1" max="65535" value="22"></label>
+        <label>utilisateur <input name="ssh_user" value="root" autocomplete="off"></label>
+        <label>mot de passe <input name="ssh_password" type="password" autocomplete="new-password"></label>
+        <p class="hint full">chiffré en AES-256-GCM avant enregistrement.</p>
+        <label class="check full" data-edit><input type="checkbox" name="clear_password"> supprimer le mot de passe enregistré</label>
+        <label class="check full" data-edit><input type="checkbox" name="reset_fingerprint"> réinitialiser l'empreinte ssh mémorisée</label>
       </fieldset>
 
       <div class="error" id="form-error"></div>
       <div class="row-end">
-        <button class="btn" type="button" id="cancel">Annuler</button>
-        <button class="btn primary" type="submit">Enregistrer</button>
+        <button class="btn" type="button" id="cancel">annuler</button>
+        <button class="btn primary" type="submit">enregistrer</button>
       </div>
     </form>
   </dialog>
 
   <!-- Notifications -->
   <dialog id="notif-dialog">
+    <span class="box-title">notifications discord</span>
     <form id="notif-form" method="dialog">
-      <h2>Notifications Discord</h2>
-      <p class="hint" style="margin:0">
-        Un message est envoyé quand un service est confirmé hors ligne (après plusieurs échecs consécutifs),
-        puis quand il revient, avec la durée de la panne.<br>
-        Discord → Paramètres du salon → Intégrations → Webhooks → « Nouveau webhook » → « Copier l'URL du webhook ».
+      <p class="hint">
+        Un message quand une panne est confirmée (plusieurs échecs consécutifs), puis un autre au retour,
+        avec la durée de l'interruption.<br>
+        Discord → paramètres du salon → intégrations → webhooks → nouveau webhook → copier l'url.
       </p>
-      <div class="hint" id="notif-status"></div>
-      <label>URL du webhook
+      <p class="hint" id="notif-status"></p>
+      <label>url du webhook
         <input name="discord_webhook" type="url" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
       </label>
       <div class="error" id="notif-error"></div>
       <div class="row-end">
-        <button class="btn danger" type="button" id="notif-remove">Supprimer</button>
-        <button class="btn" type="button" id="notif-test">Envoyer un test</button>
-        <span style="flex:1"></span>
-        <button class="btn" type="button" id="notif-cancel">Fermer</button>
-        <button class="btn primary" type="submit">Enregistrer</button>
+        <button class="btn danger" type="button" id="notif-remove">supprimer</button>
+        <button class="btn" type="button" id="notif-test">envoyer un test</button>
+        <span class="spacer"></span>
+        <button class="btn" type="button" id="notif-cancel">fermer</button>
+        <button class="btn primary" type="submit">enregistrer</button>
       </div>
     </form>
   </dialog>

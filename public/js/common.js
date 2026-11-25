@@ -32,9 +32,17 @@ export async function api(url, { method = 'GET', body } = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-export const TYPE_LABEL = { ping: 'Ping', tcp: 'TCP', http: 'HTTP(S)', dns: 'DNS' };
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } },
+};
 
-export function statusClass(s) { return s.up == null ? '' : s.up ? 'up' : 'down'; }
+export const TYPE_TAG = { ping: '#ping', tcp: '#tcp', http: '#http', dns: '#dns' };
+
+export function stateOf(s) {
+  if (s.up == null) return { cls: 'none', label: '○ en attente' };
+  return s.up ? { cls: 'up', label: '● en ligne' } : { cls: 'down', label: '● hors ligne' };
+}
 export function fmtLatency(ms) { return ms == null ? '—' : `${ms} ms`; }
 export function fmtUptime(u) { return u == null ? '—' : `${u.toFixed(u === 100 ? 0 : 2)} %`; }
 export function fmtAgo(ts) {
@@ -45,10 +53,70 @@ export function fmtAgo(ts) {
   return `il y a ${Math.round(s / 3600)} h`;
 }
 
+/** Ligne « clé valeur » pour les statistiques d'une carte. */
+export function kv(pairs) {
+  return h('div', { class: 'kv' }, pairs.map(([label, ref]) => h('span', {}, `${label} `, ref)));
+}
+
+// ---------------- Habillage commun : thème, horloge, onglets, barre d'état ----------------
+const charts = new Set();
+
+export function initChrome({ onRangeChange }) {
+  const root = document.documentElement;
+  $('#theme-toggle')?.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    store.set('theme', next);
+    for (const c of charts) c.destroy(); // recréés aux couleurs du nouveau thème
+    charts.clear();
+    document.querySelectorAll('canvas').forEach((c) => { delete c._chart; });
+    onRangeChange();
+  });
+
+  const clock = $('#sb-clock');
+  const tickClock = () => { clock.textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
+  tickClock();
+  setInterval(tickClock, 10_000);
+  const host = $('#sb-host');
+  if (host) host.textContent = `"${location.hostname}"`;
+
+  const tabs = $('#range');
+  let hours = Number(store.get('pd_range')) || 24;
+  if (!tabs.querySelector(`[data-hours="${hours}"]`)) hours = 24;
+  const sync = () => tabs.querySelectorAll('.tab').forEach((t) => {
+    const on = Number(t.dataset.hours) === hours;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on);
+  });
+  sync();
+  tabs.addEventListener('click', (e) => {
+    const t = e.target.closest('.tab');
+    if (!t) return;
+    hours = Number(t.dataset.hours);
+    store.set('pd_range', hours);
+    sync();
+    onRangeChange();
+  });
+  return () => hours;
+}
+
+export function updateStatusbar(services) {
+  const bar = $('#statusbar');
+  const main = $('#summary');
+  const known = services.filter((s) => s.up != null);
+  const down = known.filter((s) => !s.up);
+  bar.classList.toggle('down', down.length > 0);
+  if (!services.length) main.textContent = 'aucun service';
+  else if (!down.length) main.textContent = `● ${known.length}/${services.length} en ligne`;
+  else main.textContent = `● ${down.length} hors ligne : ${down.map((s) => s.name).join(', ')}`;
+  $('#updated').textContent = `maj ${new Date().toLocaleTimeString('fr-FR')}`;
+}
+
+// ---------------- Graphique ----------------
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmtTime = (t, hours) => {
   const d = new Date(t);
-  if (hours >= 8760) return `Semaine du ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  if (hours >= 8760) return `semaine du ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
   if (hours >= 720) return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
   return d.toLocaleString('fr-FR', hours > 24
     ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
@@ -56,11 +124,11 @@ const fmtTime = (t, hours) => {
 };
 
 /**
- * Graphique en barres : une barre par tranche de temps.
- * Hauteur = latence moyenne, couleur = disponibilité (vert / orange / rouge / gris = pas de données).
+ * Une barre par tranche de temps : hauteur = latence moyenne,
+ * couleur = disponibilité (vert / jaune / rouge, neutre = pas de données).
  */
 export function renderChart(canvas, history, hours) {
-  const ok = css('--ok'), warn = css('--warn'), down = css('--down'), none = css('--none');
+  const ok = css('--accent'), warn = css('--warn'), down = css('--down'), none = css('--none');
   const max = Math.max(10, ...history.map((b) => b.latency || 0));
   const data = history.map((b) => (b.up == null ? max * 0.12 : b.up === 0 ? max : b.latency ?? max * 0.12));
   const colors = history.map((b) => (b.up == null ? none : b.up >= 0.999 ? ok : b.up > 0 ? warn : down));
@@ -76,41 +144,46 @@ export function renderChart(canvas, history, hours) {
     return c;
   }
 
+  const font = { family: '"JetBrains Mono", monospace', size: 10 };
   const chart = new Chart(canvas, {
     type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 2, barPercentage: 0.9, categoryPercentage: 1 }] },
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 0, barPercentage: 0.82, categoryPercentage: 1 }] },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       plugins: {
         legend: { display: false },
         tooltip: {
-          displayColors: false,
+          displayColors: false, cornerRadius: 0, padding: 8,
+          backgroundColor: css('--bar'), titleColor: css('--accent'), bodyColor: css('--text'),
+          borderColor: css('--line-2'), borderWidth: 1,
+          titleFont: { ...font, size: 12, weight: 700 }, bodyFont: { ...font, size: 12 },
           callbacks: {
             title: (items) => items[0].label,
             label: (item) => {
               const b = chart.$history[item.dataIndex];
-              if (b.up == null) return 'Aucune donnée';
-              return [`Disponibilité : ${(b.up * 100).toFixed(1)} %`, `Latence : ${fmtLatency(b.latency)}`];
+              if (b.up == null) return 'aucune donnée';
+              return [`dispo   ${(b.up * 100).toFixed(1)} %`, `latence ${fmtLatency(b.latency)}`];
             },
           },
         },
       },
       scales: {
         x: { display: false },
-        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.05)' },
-          ticks: { color: css('--muted'), maxTicksLimit: 3, font: { size: 10 }, callback: (v) => `${v} ms` } },
+        y: {
+          beginAtZero: true, border: { display: false },
+          grid: { color: css('--line'), drawTicks: false },
+          ticks: { color: css('--muted'), maxTicksLimit: 3, font, padding: 6, callback: (v) => `${v}ms` },
+        },
       },
     },
   });
   chart.$history = history;
   canvas._chart = chart;
+  charts.add(chart);
   return chart;
 }
 
-export function summaryText(services) {
-  const known = services.filter((s) => s.up != null);
-  const down = known.filter((s) => !s.up).length;
-  if (!services.length) return { cls: '', text: 'Aucun service' };
-  if (down === 0) return { cls: 'up', text: 'Tous les services sont opérationnels' };
-  return { cls: 'down', text: `${down} service${down > 1 ? 's' : ''} en panne` };
+/** Retire les graphiques des cartes supprimées. */
+export function forgetChart(canvas) {
+  if (canvas._chart) { charts.delete(canvas._chart); canvas._chart.destroy(); delete canvas._chart; }
 }
