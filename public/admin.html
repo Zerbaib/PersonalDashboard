@@ -40,6 +40,7 @@
           <option value="8760">1 an</option>
         </select>
         <button class="btn primary" id="add">+ Ajouter</button>
+        <button class="btn" id="notif-btn">🔔 Notifications</button>
         <a class="btn" href="/" target="_blank" rel="noopener">Page publique</a>
         <button class="btn" id="logout">Déconnexion</button>
       </div>
@@ -76,6 +77,7 @@
         </label>
         <label class="full">Lien ouvert au clic (optionnel) <input name="link_url" type="url" placeholder="https://exemple.fr"></label>
         <label class="check full"><input type="checkbox" name="is_public" checked> Visible sur la page publique</label>
+        <label class="check full"><input type="checkbox" name="notify" checked> Notifier sur Discord quand le service tombe ou revient</label>
       </fieldset>
 
       <fieldset>
@@ -92,6 +94,30 @@
       <div class="error" id="form-error"></div>
       <div class="row-end">
         <button class="btn" type="button" id="cancel">Annuler</button>
+        <button class="btn primary" type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Notifications -->
+  <dialog id="notif-dialog">
+    <form id="notif-form" method="dialog">
+      <h2>Notifications Discord</h2>
+      <p class="hint" style="margin:0">
+        Un message est envoyé quand un service est confirmé hors ligne (après plusieurs échecs consécutifs),
+        puis quand il revient, avec la durée de la panne.<br>
+        Discord → Paramètres du salon → Intégrations → Webhooks → « Nouveau webhook » → « Copier l'URL du webhook ».
+      </p>
+      <div class="hint" id="notif-status"></div>
+      <label>URL du webhook
+        <input name="discord_webhook" type="url" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
+      </label>
+      <div class="error" id="notif-error"></div>
+      <div class="row-end">
+        <button class="btn danger" type="button" id="notif-remove">Supprimer</button>
+        <button class="btn" type="button" id="notif-test">Envoyer un test</button>
+        <span style="flex:1"></span>
+        <button class="btn" type="button" id="notif-cancel">Fermer</button>
         <button class="btn primary" type="submit">Enregistrer</button>
       </div>
     </form>

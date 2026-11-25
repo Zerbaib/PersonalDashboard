@@ -12,6 +12,7 @@ import {
   requireAuth, sessionFromCookieHeader, isRateLimited,
 } from './auth.js';
 import { startMonitor, checkNow } from './monitor.js';
+import { DISCORD_WEBHOOK_RE, setWebhookUrl, webhookInfo, sendDiscord, testPayload } from './notify.js';
 import { attachTerminal } from './terminal.js';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -63,7 +64,7 @@ function publicView(s, hours) {
 
 function adminView(s, hours) {
   const { ssh_password_enc, ...rest } = s;
-  return { ...rest, is_public: !!s.is_public, has_password: !!ssh_password_enc, ...statusOf(s, hours) };
+  return { ...rest, is_public: !!s.is_public, notify: !!s.notify, has_password: !!ssh_password_enc, ...statusOf(s, hours) };
 }
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -97,6 +98,7 @@ function validate(body, existing) {
     link_url: str(body.link_url, 500),
     interval_sec: int(body.interval_sec, 10, 86400, 60),
     is_public: body.is_public === false || body.is_public === 0 ? 0 : 1,
+    notify: body.notify === false || body.notify === 0 ? 0 : 1,
     position: int(body.position, 0, 100000, existing?.position ?? 0),
     ip: str(body.ip, 255),
     ssh_port: int(body.ssh_port, 1, 65535, 22),
@@ -197,6 +199,30 @@ admin.post('/services/:id/check', async (req, res) => {
   const s = serviceOr404(req);
   const result = await checkNow(s);
   res.json({ ...result, service: adminView(getService(s.id), 24) });
+});
+
+// ---------- Notifications ----------
+admin.get('/settings', (req, res) => res.json({ discord: webhookInfo() }));
+
+admin.put('/settings', (req, res) => {
+  const url = str(req.body?.discord_webhook, 300);
+  if (url && !DISCORD_WEBHOOK_RE.test(url)) bad('URL de webhook Discord invalide (https://discord.com/api/webhooks/…)');
+  setWebhookUrl(url);
+  console.log(`[audit] ${req.session.user} a ${url ? 'modifié' : 'supprimé'} le webhook Discord`);
+  res.json({ discord: webhookInfo() });
+});
+
+admin.post('/settings/test-discord', async (req, res) => {
+  const url = str(req.body?.discord_webhook, 300);
+  if (url && !DISCORD_WEBHOOK_RE.test(url)) bad('URL de webhook Discord invalide');
+  try {
+    const sent = await sendDiscord(testPayload(), url || undefined);
+    if (!sent) bad('Aucun webhook Discord configuré');
+    res.json({ ok: true });
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(502, e.message);
+  }
 });
 
 app.use('/api/admin', admin);

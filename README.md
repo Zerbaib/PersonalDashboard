@@ -12,6 +12,7 @@ Supervision auto-hébergée de vos services et serveurs, en deux parties :
 | IP, utilisateur, mot de passe (masqué, affichable, copiable) | — | ✅ |
 | Console SSH du serveur dans la carte | — | ✅ |
 | Ajouter / modifier / supprimer / tester un service | — | ✅ |
+| Notifications Discord (panne / retour) | — | ✅ |
 
 ## Types de vérification
 
@@ -36,6 +37,20 @@ Chaque service est vérifié selon son intervalle (60 s par défaut).
 Les données plus anciennes sont supprimées automatiquement toutes les heures. Avec un intervalle de 60 s, un an d'agrégats représente environ 8 760 lignes par service.
 
 Un service peut être marqué **privé** : il n'apparaît alors que dans l'espace privé.
+
+## Notifications Discord
+
+1. Dans Discord : **Paramètres du salon → Intégrations → Webhooks → Nouveau webhook → Copier l'URL du webhook**.
+2. Dans l'espace privé : bouton **🔔 Notifications**, collez l'URL, cliquez sur **Enregistrer**, puis sur **Envoyer un test**.
+
+Deux messages sont envoyés :
+
+- 🔴 **hors ligne** : quand une panne est confirmée, avec le type, la cible, l'erreur et l'heure de début ;
+- 🟢 **de nouveau en ligne** : au premier succès suivant, avec la durée de l'interruption et la latence.
+
+Pour éviter les fausses alertes, une panne n'est annoncée qu'après `ALERT_AFTER_FAILURES` échecs consécutifs (2 par défaut). Après un premier échec, le service est revérifié au bout de `RETRY_SEC` secondes (20 par défaut) : une panne réelle est donc signalée en 20 à 30 secondes environ.
+
+Les notifications se désactivent service par service (case « Notifier sur Discord » dans le formulaire). L'URL du webhook est chiffrée en base. Elle peut aussi être fournie par la variable `DISCORD_WEBHOOK_URL`.
 
 ## Installation
 
@@ -79,6 +94,7 @@ server/
   index.js     API REST + fichiers statiques
   monitor.js   vérifications ping / tcp / http / dns, purge de l'historique
   terminal.js  console SSH via WebSocket (ssh2)
+  notify.js    notifications Discord
   db.js        SQLite (data/dashboard.db)
   auth.js      connexion admin, sessions, anti-bruteforce
   crypto.js    chiffrement des mots de passe
@@ -93,4 +109,5 @@ public/
 - `POST /api/login`, `POST /api/logout`, `GET /api/me`
 - `GET|POST /api/admin/services`, `PUT|DELETE /api/admin/services/:id`
 - `GET /api/admin/services/:id/password`, `POST /api/admin/services/:id/check`
+- `GET|PUT /api/admin/settings`, `POST /api/admin/settings/test-discord` : webhook Discord
 - `WS /ws/terminal?id=:id` : console SSH (session admin requise)

@@ -21,6 +21,8 @@ export const config = {
   sessionHours: Number(process.env.SESSION_HOURS || 12),
   retentionDays: Number(process.env.RETENTION_DAYS || 30),
   retentionHourlyDays: Number(process.env.RETENTION_HOURLY_DAYS || 365),
+  alertAfterFailures: Math.max(1, Number(process.env.ALERT_AFTER_FAILURES || 2)),
+  retrySec: Math.max(5, Number(process.env.RETRY_SEC || 20)),
 };
 
 if (config.masterKey.length < 32) {

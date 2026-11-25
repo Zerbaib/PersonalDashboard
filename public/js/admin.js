@@ -41,6 +41,7 @@ function showApp() {
   try { range.value = localStorage.getItem('pd_range') || '24'; } catch { /* ignore */ }
   refresh();
   timer = setInterval(refresh, 30_000);
+  api('/api/admin/settings').then((r) => $('#notif-btn').classList.toggle('active', r.discord.configured)).catch(() => {});
 }
 
 range.addEventListener('change', () => {
@@ -296,6 +297,7 @@ function openForm(s = null) {
       if (s[k] != null) form[k].value = s[k];
     }
     form.is_public.checked = s.is_public;
+    form.notify.checked = s.notify;
     form.ssh_password.placeholder = s.has_password ? 'Laisser vide pour conserver' : '';
   } else {
     form.ssh_password.placeholder = '';
@@ -312,6 +314,7 @@ form.addEventListener('submit', async (e) => {
   const f = new FormData(form);
   const body = Object.fromEntries(f.entries());
   body.is_public = form.is_public.checked;
+  body.notify = form.notify.checked;
   body.clear_password = form.clear_password.checked;
   body.reset_fingerprint = form.reset_fingerprint.checked;
   if (!['tcp', 'dns'].includes(body.type)) body.port = '';
@@ -326,5 +329,55 @@ form.addEventListener('submit', async (e) => {
     if (!onAuthLost(err)) $('#form-error').textContent = err.message;
   }
 });
+
+// ---------------- Notifications Discord ----------------
+const notifDialog = $('#notif-dialog');
+const notifForm = $('#notif-form');
+
+function showNotifStatus(info) {
+  const st = $('#notif-status');
+  st.textContent = info.configured
+    ? `✅ Webhook actif${info.from_env ? ' (variable DISCORD_WEBHOOK_URL)' : ''} : ${info.masked}`
+    : '⚪ Aucun webhook configuré : les notifications sont désactivées.';
+  $('#notif-remove').hidden = !info.configured || info.from_env;
+  $('#notif-btn').classList.toggle('active', info.configured);
+}
+
+async function notifAction(fn) {
+  $('#notif-error').textContent = '';
+  try { await fn(); } catch (e) { if (!onAuthLost(e)) $('#notif-error').textContent = e.message; }
+}
+
+$('#notif-btn').addEventListener('click', () => notifAction(async () => {
+  notifForm.reset();
+  showNotifStatus((await api('/api/admin/settings')).discord);
+  notifDialog.showModal();
+}));
+$('#notif-cancel').addEventListener('click', () => notifDialog.close());
+
+notifForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  notifAction(async () => {
+    const url = notifForm.discord_webhook.value.trim();
+    if (!url) throw new Error('Collez l’URL du webhook (ou utilisez « Supprimer »).');
+    showNotifStatus((await api('/api/admin/settings', { method: 'PUT', body: { discord_webhook: url } })).discord);
+    notifForm.reset();
+  });
+});
+
+$('#notif-remove').addEventListener('click', () => notifAction(async () => {
+  if (!confirm('Supprimer le webhook Discord ? Plus aucune notification ne sera envoyée.')) return;
+  showNotifStatus((await api('/api/admin/settings', { method: 'PUT', body: { discord_webhook: '' } })).discord);
+}));
+
+$('#notif-test').addEventListener('click', (e) => notifAction(async () => {
+  const btn = e.target;
+  btn.disabled = true;
+  try {
+    await api('/api/admin/settings/test-discord', { method: 'POST', body: { discord_webhook: notifForm.discord_webhook.value.trim() } });
+    btn.textContent = 'Envoyé ✓';
+    setTimeout(() => { btn.textContent = 'Envoyer un test'; }, 2000);
+  } finally { btn.disabled = false; }
+}));
 
 boot();

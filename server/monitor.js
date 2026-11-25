@@ -2,7 +2,8 @@ import { execFile } from 'node:child_process';
 import net from 'node:net';
 import dns from 'node:dns';
 import { config } from './config.js';
-import { listServices, insertCheck, purge } from './db.js';
+import { listServices, getService, insertCheck, setState, purge } from './db.js';
+import { sendDiscord, downPayload, upPayload } from './notify.js';
 
 const TIMEOUT = 10_000;
 const HOST_RE = /^[a-zA-Z0-9]([a-zA-Z0-9.\-:]*[a-zA-Z0-9])?$/;
@@ -92,12 +93,45 @@ export async function runCheck(s) {
 const running = new Set();
 const lastRun = new Map();
 
+function notify(s, payload, label) {
+  if (!s.notify) return;
+  sendDiscord(payload)
+    .then((sent) => sent && console.log(`[discord] ${label} : ${s.name}`))
+    .catch((e) => console.error(`[discord] Échec de l'envoi (${s.name}) :`, e.message));
+}
+
+/**
+ * Machine à états : une panne n'est confirmée (et notifiée) qu'après
+ * `alertAfterFailures` échecs consécutifs ; le retour est notifié dès le 1er succès.
+ */
+function updateState(id, r) {
+  const s = getService(id); // état le plus récent
+  if (!s) return;
+  const now = Date.now();
+  if (r.up) {
+    if (s.state === 'down') notify(s, upPayload(s, r, s.state_since ?? now, now), 'rétabli');
+    if (s.state !== 'up' || s.fail_streak) {
+      setState(id, { state: 'up', state_since: s.state === 'up' ? s.state_since : now, fail_streak: 0, fail_since: null });
+    }
+    return;
+  }
+  const streak = s.fail_streak + 1;
+  const failSince = s.fail_since ?? now;
+  if (s.state !== 'down' && streak >= config.alertAfterFailures) {
+    setState(id, { state: 'down', state_since: failSince, fail_streak: streak, fail_since: failSince });
+    notify(s, downPayload(s, r, failSince), 'hors ligne');
+  } else {
+    setState(id, { state: s.state, state_since: s.state_since, fail_streak: streak, fail_since: failSince });
+  }
+}
+
 export async function checkNow(service) {
   running.add(service.id);
   lastRun.set(service.id, Date.now());
   try {
     const r = await runCheck(service);
     insertCheck(service.id, r);
+    updateState(service.id, r);
     return r;
   } finally {
     running.delete(service.id);
@@ -108,7 +142,10 @@ function tick() {
   const now = Date.now();
   for (const s of listServices()) {
     if (running.has(s.id)) continue;
-    if (now - (lastRun.get(s.id) || 0) < s.interval_sec * 1000) continue;
+    // Échec non encore confirmé : on revérifie plus vite pour confirmer (ou non) la panne
+    const confirming = s.fail_streak > 0 && s.state !== 'down';
+    const wait = confirming ? Math.min(config.retrySec, s.interval_sec) : s.interval_sec;
+    if (now - (lastRun.get(s.id) || 0) < wait * 1000) continue;
     checkNow(s).catch((e) => console.error(`[monitor] ${s.name} :`, e.message));
   }
 }

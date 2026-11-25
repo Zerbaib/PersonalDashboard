@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS services (
   ssh_user         TEXT,
   ssh_password_enc TEXT,
   ssh_fingerprint  TEXT,
+  notify           INTEGER NOT NULL DEFAULT 1,
+  state            TEXT,
+  state_since      INTEGER,
+  fail_streak      INTEGER NOT NULL DEFAULT 0,
+  fail_since       INTEGER,
   created_at       INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 
@@ -52,11 +57,24 @@ CREATE TABLE IF NOT EXISTS checks_hourly (
   latency_n    INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (service_id, hour)
 ) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);
 `);
 
-// Migration depuis la 1re version (colonne dns_query absente)
-if (!db.prepare('PRAGMA table_info(services)').all().some((c) => c.name === 'dns_query')) {
-  db.exec('ALTER TABLE services ADD COLUMN dns_query TEXT');
+// Migrations des bases créées par une version précédente
+const columns = new Set(db.prepare('PRAGMA table_info(services)').all().map((c) => c.name));
+for (const [name, def] of [
+  ['dns_query', 'TEXT'],
+  ['notify', 'INTEGER NOT NULL DEFAULT 1'],
+  ['state', 'TEXT'],
+  ['state_since', 'INTEGER'],
+  ['fail_streak', 'INTEGER NOT NULL DEFAULT 0'],
+  ['fail_since', 'INTEGER'],
+]) {
+  if (!columns.has(name)) db.exec(`ALTER TABLE services ADD COLUMN ${name} ${def}`);
 }
 // Agrégats manquants : on les reconstruit depuis les mesures brutes
 if (!db.prepare('SELECT 1 FROM checks_hourly LIMIT 1').get()) {
@@ -71,8 +89,12 @@ const stmts = {
   list: db.prepare('SELECT * FROM services ORDER BY position, id'),
   get: db.prepare('SELECT * FROM services WHERE id = ?'),
   insert: db.prepare(`INSERT INTO services
-    (name, type, target, port, dns_query, dns_record_type, link_url, interval_sec, is_public, position, ip, ssh_port, ssh_user, ssh_password_enc)
-    VALUES (@name, @type, @target, @port, @dns_query, @dns_record_type, @link_url, @interval_sec, @is_public, @position, @ip, @ssh_port, @ssh_user, @ssh_password_enc)`),
+    (name, type, target, port, dns_query, dns_record_type, link_url, interval_sec, is_public, notify, position, ip, ssh_port, ssh_user, ssh_password_enc)
+    VALUES (@name, @type, @target, @port, @dns_query, @dns_record_type, @link_url, @interval_sec, @is_public, @notify, @position, @ip, @ssh_port, @ssh_user, @ssh_password_enc)`),
+  setState: db.prepare('UPDATE services SET state = @state, state_since = @state_since, fail_streak = @fail_streak, fail_since = @fail_since WHERE id = @id'),
+  getSetting: db.prepare('SELECT value FROM settings WHERE key = ?'),
+  setSetting: db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'),
+  deleteSetting: db.prepare('DELETE FROM settings WHERE key = ?'),
   remove: db.prepare('DELETE FROM services WHERE id = ?'),
   setFingerprint: db.prepare('UPDATE services SET ssh_fingerprint = ? WHERE id = ?'),
   insertCheck: db.prepare('INSERT INTO checks (service_id, ts, up, latency_ms, message) VALUES (?, ?, ?, ?, ?)'),
@@ -100,6 +122,9 @@ export const createService = (s) => getService(stmts.insert.run(s).lastInsertRow
 export const deleteService = (id) => stmts.remove.run(id).changes > 0;
 export const setFingerprint = (id, fp) => stmts.setFingerprint.run(fp, id);
 export const lastCheck = (id) => stmts.lastCheck.get(id);
+export const setState = (id, st) => stmts.setState.run({ id, ...st });
+export const getSetting = (key) => stmts.getSetting.get(key)?.value ?? null;
+export const setSetting = (key, value) => (value == null ? stmts.deleteSetting.run(key) : stmts.setSetting.run(key, value));
 
 export const insertCheck = db.transaction((id, r) => {
   const ts = Date.now();
@@ -115,7 +140,7 @@ export function purge(rawBefore, hourlyBefore) {
 }
 
 const UPDATABLE = ['name', 'type', 'target', 'port', 'dns_query', 'dns_record_type', 'link_url',
-  'interval_sec', 'is_public', 'position', 'ip', 'ssh_port', 'ssh_user', 'ssh_password_enc', 'ssh_fingerprint'];
+  'interval_sec', 'is_public', 'notify', 'position', 'ip', 'ssh_port', 'ssh_user', 'ssh_password_enc', 'ssh_fingerprint'];
 
 export function updateService(id, fields) {
   const keys = Object.keys(fields).filter((k) => UPDATABLE.includes(k));
