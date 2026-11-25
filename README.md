@@ -5,7 +5,8 @@ Supervision auto-hébergée de vos services et serveurs, en deux parties :
 | | Page publique `/` | Espace privé `/admin` |
 |---|---|---|
 | Statut en ligne / hors ligne | ✅ | ✅ |
-| Graphique disponibilité + latence (1 h / 24 h / 7 j) | ✅ | ✅ |
+| Graphique disponibilité + latence (1 h / 24 h / 7 j / 30 j / 1 an) | ✅ | ✅ |
+| Disponibilité sur 30 jours et sur 1 an | ✅ | ✅ |
 | Clic sur la carte → ouvre le service dans un nouvel onglet | ✅ | bouton « Ouvrir » |
 | Cible surveillée, message d'erreur | — | ✅ |
 | IP, utilisateur, mot de passe (masqué, affichable, copiable) | — | ✅ |
@@ -19,9 +20,20 @@ Supervision auto-hébergée de vos services et serveurs, en deux parties :
 | **Ping** | IP ou nom d'hôte | réponse ICMP |
 | **TCP** | IP ou nom d'hôte + port | le port accepte la connexion |
 | **HTTP(S)** | URL `http://` ou `https://` | code HTTP < 400 (certificat TLS valide) |
-| **DNS** | nom de domaine (+ type A, AAAA, MX, TXT…, valeur attendue et serveur DNS facultatifs) | la résolution réussit et contient la valeur attendue |
+| **DNS** | IP ou nom d'un **serveur DNS** (+ port, 53 par défaut) | le serveur répond à une requête de test (domaine et type configurables, `example.com A` par défaut). NXDOMAIN compte comme une réponse ; REFUSED, SERVFAIL ou l'absence de réponse comptent comme une panne |
 
-Chaque service est vérifié selon son intervalle (60 s par défaut). L'historique est conservé `RETENTION_DAYS` jours (30 par défaut).
+Chaque service est vérifié selon son intervalle (60 s par défaut).
+
+> Pour un serveur DNS **autoritaire** (qui ne fait pas résolveur), choisissez comme domaine de test une zone qu'il héberge : sinon il répondra REFUSED.
+
+## Historique
+
+| Données | Conservation | Utilisées pour |
+|---|---|---|
+| Chaque vérification (statut, latence, message) | `RETENTION_DAYS` = **30 jours** | graphiques 1 h et 24 h, dernier statut |
+| Agrégats horaires (nombre de vérifications, disponibilité, latence moyenne) | `RETENTION_HOURLY_DAYS` = **365 jours** | graphiques 7 j, 30 j et 1 an, disponibilité 30 j et 1 an |
+
+Les données plus anciennes sont supprimées automatiquement toutes les heures. Avec un intervalle de 60 s, un an d'agrégats représente environ 8 760 lignes par service.
 
 Un service peut être marqué **privé** : il n'apparaît alors que dans l'espace privé.
 
@@ -65,7 +77,7 @@ Cet outil stocke des accès **root** et ouvre des consoles sur vos serveurs. En 
 ```
 server/
   index.js     API REST + fichiers statiques
-  monitor.js   vérifications ping / tcp / http / dns
+  monitor.js   vérifications ping / tcp / http / dns, purge de l'historique
   terminal.js  console SSH via WebSocket (ssh2)
   db.js        SQLite (data/dashboard.db)
   auth.js      connexion admin, sessions, anti-bruteforce
@@ -77,7 +89,7 @@ public/
 
 ## API
 
-- `GET /api/status?hours=1|24|168` : statut public (sans authentification)
+- `GET /api/status?hours=1|24|168|720|8760` : statut public (sans authentification)
 - `POST /api/login`, `POST /api/logout`, `GET /api/me`
 - `GET|POST /api/admin/services`, `PUT|DELETE /api/admin/services/:id`
 - `GET /api/admin/services/:id/password`, `POST /api/admin/services/:id/check`

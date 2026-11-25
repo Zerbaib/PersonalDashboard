@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { config } from './config.js';
 import {
-  listServices, getService, createService, updateService, deleteService, lastCheck, getHistory,
+  listServices, getService, createService, updateService, deleteService, lastCheck, getHistory, getUptimes, PERIODS,
 } from './db.js';
 import { encrypt, decrypt } from './crypto.js';
 import {
@@ -40,8 +40,7 @@ app.get('/admin', (req, res) => res.sendFile(path.join(root, 'public', 'admin.ht
 app.use(express.static(path.join(root, 'public'), { extensions: ['html'] }));
 
 // ---------- Helpers ----------
-const HOURS = { '1': 1, '24': 24, '168': 168 };
-const hoursOf = (req) => HOURS[req.query.hours] ?? 24;
+const hoursOf = (req) => (PERIODS[req.query.hours] ? Number(req.query.hours) : 24);
 
 function statusOf(s, hours) {
   const last = lastCheck(s.id);
@@ -52,6 +51,7 @@ function statusOf(s, hours) {
     checked_at: last?.ts ?? null,
     message: last?.message ?? null,
     uptime: uptime != null ? Math.round(uptime * 10000) / 100 : null,
+    ...getUptimes(s.id),
     history,
   };
 }
@@ -83,6 +83,7 @@ const int = (v, min, max, def) => {
   return n;
 };
 const HOST_RE = /^[a-zA-Z0-9]([a-zA-Z0-9.\-:]*[a-zA-Z0-9])?$/;
+const DOMAIN_RE = /^(?=.{1,253}\.?$)([a-zA-Z0-9_]([a-zA-Z0-9_-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9_]([a-zA-Z0-9_-]{0,61}[a-zA-Z0-9])?\.?$/;
 const isUrl = (u) => { try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; } };
 
 function validate(body, existing) {
@@ -91,9 +92,8 @@ function validate(body, existing) {
     type: body.type,
     target: str(body.target, 500) ?? bad('Cible requise'),
     port: int(body.port, 1, 65535, null),
+    dns_query: str(body.dns_query, 253),
     dns_record_type: str(body.dns_record_type, 10)?.toUpperCase() ?? null,
-    dns_expected: str(body.dns_expected, 255),
-    dns_server: str(body.dns_server, 100),
     link_url: str(body.link_url, 500),
     interval_sec: int(body.interval_sec, 10, 86400, 60),
     is_public: body.is_public === false || body.is_public === 0 ? 0 : 1,
@@ -106,8 +106,16 @@ function validate(body, existing) {
   if (s.type === 'http' && !isUrl(s.target)) bad('La cible HTTP doit être une URL http(s)://');
   if (['ping', 'tcp', 'dns'].includes(s.type) && !HOST_RE.test(s.target)) bad('Nom d’hôte / IP invalide');
   if (s.type === 'tcp' && !s.port) bad('Port requis pour une vérification TCP');
-  if (s.type === 'dns' && !['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SRV', 'PTR', 'SOA', 'CAA'].includes(s.dns_record_type || 'A')) bad('Type d’enregistrement DNS invalide');
-  if (s.dns_server && !HOST_RE.test(s.dns_server)) bad('Serveur DNS invalide');
+  if (s.type === 'dns') {
+    s.port ??= 53;
+    s.dns_query ??= 'example.com';
+    s.dns_record_type ??= 'A';
+    if (s.dns_query !== '.' && !DOMAIN_RE.test(s.dns_query)) bad('Domaine de test invalide');
+    if (!['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SOA', 'CAA'].includes(s.dns_record_type)) bad('Type d’enregistrement DNS invalide');
+  } else {
+    s.dns_query = null;
+    s.dns_record_type = null;
+  }
   if (s.link_url && !isUrl(s.link_url)) bad('Le lien doit être une URL http(s)://');
   if (s.ip && !HOST_RE.test(s.ip)) bad('IP / hôte SSH invalide');
 

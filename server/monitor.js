@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import net from 'node:net';
 import dns from 'node:dns';
 import { config } from './config.js';
-import { listServices, insertCheck, purgeChecks } from './db.js';
+import { listServices, insertCheck, purge } from './db.js';
 
 const TIMEOUT = 10_000;
 const HOST_RE = /^[a-zA-Z0-9]([a-zA-Z0-9.\-:]*[a-zA-Z0-9])?$/;
@@ -48,20 +48,34 @@ async function http(url) {
   }
 }
 
-async function dnsCheck(name, type = 'A', expected, server) {
+// Le serveur DNS est considéré en ligne s'il répond à la requête de test.
+// NXDOMAIN / NODATA sont des réponses valides : le serveur fonctionne.
+const DNS_ALIVE = { ENOTFOUND: 'NXDOMAIN', ENODATA: 'pas d’enregistrement' };
+const DNS_ERRORS = {
+  ETIMEOUT: 'Pas de réponse (délai dépassé)',
+  ECONNREFUSED: 'Connexion refusée',
+  ESERVFAIL: 'SERVFAIL : le serveur n’a pas pu résoudre le domaine de test',
+  EREFUSED: 'REFUSED : requête refusée (domaine de test non autorisé sur ce serveur ?)',
+  EBADRESP: 'Réponse invalide',
+};
+
+async function dnsCheck(server, port, query, type) {
+  let ip = server;
+  if (!net.isIP(server)) {
+    try { ip = (await dns.promises.lookup(server)).address; } catch {
+      return { up: false, message: `Impossible de trouver l’adresse de ${server}` };
+    }
+  }
   const resolver = new dns.promises.Resolver({ timeout: 5000, tries: 2 });
-  if (server) resolver.setServers([server]);
+  resolver.setServers([net.isIPv6(ip) ? `[${ip}]:${port}` : `${ip}:${port}`]);
   const start = performance.now();
   try {
-    const records = await resolver.resolve(name, type);
-    const latency = performance.now() - start;
-    const flat = JSON.stringify(records);
-    if (expected && !flat.includes(expected)) {
-      return { up: false, latency, message: `Valeur attendue absente (${flat.slice(0, 120)})` };
-    }
-    return { up: true, latency, message: flat.slice(0, 200) };
+    const records = await resolver.resolve(query, type);
+    return { up: true, latency: performance.now() - start, message: `${query} ${type} → ${JSON.stringify(records).slice(0, 150)}` };
   } catch (e) {
-    return { up: false, message: e.code || e.message };
+    const latency = performance.now() - start;
+    if (DNS_ALIVE[e.code]) return { up: true, latency, message: `${query} ${type} → ${DNS_ALIVE[e.code]}` };
+    return { up: false, message: DNS_ERRORS[e.code] || e.code || e.message };
   }
 }
 
@@ -70,7 +84,7 @@ export async function runCheck(s) {
     case 'ping': return ping(s.target);
     case 'tcp': return tcp(s.target, s.port);
     case 'http': return http(s.target);
-    case 'dns': return dnsCheck(s.target, s.dns_record_type || 'A', s.dns_expected, s.dns_server);
+    case 'dns': return dnsCheck(s.target, s.port || 53, s.dns_query || 'example.com', s.dns_record_type || 'A');
     default: return { up: false, message: 'Type inconnu' };
   }
 }
@@ -103,7 +117,8 @@ export function startMonitor() {
   tick();
   setInterval(tick, 5000);
   setInterval(() => {
-    const n = purgeChecks(Date.now() - config.retentionDays * 86400 * 1000);
+    const now = Date.now();
+    const n = purge(now - config.retentionDays * 86400 * 1000, now - config.retentionHourlyDays * 86400 * 1000);
     if (n) console.log(`[monitor] ${n} anciennes mesures supprimées`);
   }, 3600 * 1000);
 }

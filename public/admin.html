@@ -36,6 +36,8 @@
           <option value="1">1 h</option>
           <option value="24" selected>24 h</option>
           <option value="168">7 jours</option>
+          <option value="720">30 jours</option>
+          <option value="8760">1 an</option>
         </select>
         <button class="btn primary" id="add">+ Ajouter</button>
         <a class="btn" href="/" target="_blank" rel="noopener">Page publique</a>
@@ -64,15 +66,14 @@
         <label>Intervalle (s) <input name="interval_sec" type="number" min="10" max="86400" value="60"></label>
         <label class="full">Cible <input name="target" required placeholder="https://exemple.fr"></label>
         <span class="hint full" id="target-hint"></span>
-        <label data-for="tcp">Port <input name="port" type="number" min="1" max="65535"></label>
-        <label data-for="dns">Enregistrement
+        <label data-for="tcp dns">Port <input name="port" type="number" min="1" max="65535"></label>
+        <label data-for="dns">Domaine de test <input name="dns_query" placeholder="example.com"></label>
+        <label data-for="dns">Type de requête
           <select class="field" name="dns_record_type">
             <option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option>
-            <option>TXT</option><option>NS</option><option>SRV</option><option>CAA</option><option>SOA</option>
+            <option>TXT</option><option>NS</option><option>SOA</option><option>CAA</option>
           </select>
         </label>
-        <label data-for="dns">Valeur attendue (optionnel) <input name="dns_expected" placeholder="1.2.3.4"></label>
-        <label data-for="dns">Serveur DNS (optionnel) <input name="dns_server" placeholder="1.1.1.1"></label>
         <label class="full">Lien ouvert au clic (optionnel) <input name="link_url" type="url" placeholder="https://exemple.fr"></label>
         <label class="check full"><input type="checkbox" name="is_public" checked> Visible sur la page publique</label>
       </fieldset>

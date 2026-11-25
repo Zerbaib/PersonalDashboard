@@ -14,14 +14,17 @@ function buildCard(s) {
   const refs = {
     dot: h('span', { class: 'dot' }),
     name: h('span', { class: 'name' }),
-    uptime: h('b'), latency: h('b'),
+    uptime: h('b'), latency: h('b'), u30: h('b'), u1y: h('b'),
     canvas: h('canvas'),
   };
   const el = h('article', { class: 'card', tabindex: '0' },
     h('div', { class: 'card-head' }, refs.dot, refs.name, h('span', { class: 'badge' }, TYPE_LABEL[s.type])),
     h('div', { class: 'stats' },
-      h('span', {}, 'Disponibilité ', refs.uptime),
+      h('span', {}, 'Dispo. période ', refs.uptime),
       h('span', {}, 'Latence ', refs.latency)),
+    h('div', { class: 'stats' },
+      h('span', {}, 'Dispo. 30 j ', refs.u30),
+      h('span', {}, '1 an ', refs.u1y)),
     h('div', { class: 'chart-box' }, refs.canvas));
 
   const open = () => { if (el.dataset.link) window.open(el.dataset.link, '_blank', 'noopener,noreferrer'); };
@@ -36,6 +39,8 @@ function updateCard(card, s, hours) {
   refs.name.textContent = s.name;
   refs.uptime.textContent = fmtUptime(s.uptime);
   refs.latency.textContent = fmtLatency(s.latency);
+  refs.u30.textContent = fmtUptime(s.uptime_30d);
+  refs.u1y.textContent = fmtUptime(s.uptime_1y);
   el.classList.toggle('is-down', s.up === false);
   el.classList.toggle('clickable', !!s.link_url);
   if (s.link_url) { el.dataset.link = s.link_url; el.title = `Ouvrir ${s.link_url}`; }

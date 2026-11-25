@@ -20,6 +20,7 @@ export const config = {
   trustProxy: process.env.TRUST_PROXY === 'true',
   sessionHours: Number(process.env.SESSION_HOURS || 12),
   retentionDays: Number(process.env.RETENTION_DAYS || 30),
+  retentionHourlyDays: Number(process.env.RETENTION_HOURLY_DAYS || 365),
 };
 
 if (config.masterKey.length < 32) {

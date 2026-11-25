@@ -46,9 +46,14 @@ export function fmtAgo(ts) {
 }
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const fmtTime = (t, hours) => new Date(t).toLocaleString('fr-FR', hours > 24
-  ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
-  : { hour: '2-digit', minute: '2-digit' });
+const fmtTime = (t, hours) => {
+  const d = new Date(t);
+  if (hours >= 8760) return `Semaine du ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  if (hours >= 720) return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
+  return d.toLocaleString('fr-FR', hours > 24
+    ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
+    : { hour: '2-digit', minute: '2-digit' });
+};
 
 /**
  * Graphique en barres : une barre par tranche de temps.

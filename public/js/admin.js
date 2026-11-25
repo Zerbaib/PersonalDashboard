@@ -68,7 +68,7 @@ function buildCard(s) {
     name: h('span', { class: 'name' }),
     type: h('span', { class: 'badge' }),
     priv: h('span', { class: 'badge private' }, 'Privé'),
-    uptime: h('b'), latency: h('b'), checked: h('b'),
+    uptime: h('b'), latency: h('b'), checked: h('b'), u30: h('b'), u1y: h('b'),
     canvas: h('canvas'),
     target: h('code'), ip: h('code'), user: h('code'), pw: h('code'),
     msg: h('div', { class: 'msg' }),
@@ -83,9 +83,12 @@ function buildCard(s) {
   const el = h('article', { class: 'card' },
     h('div', { class: 'card-head' }, refs.dot, refs.name, refs.priv, refs.type),
     h('div', { class: 'stats' },
-      h('span', {}, 'Dispo. ', refs.uptime),
+      h('span', {}, 'Dispo. période ', refs.uptime),
       h('span', {}, 'Latence ', refs.latency),
       h('span', {}, 'Vérifié ', refs.checked)),
+    h('div', { class: 'stats' },
+      h('span', {}, 'Dispo. 30 j ', refs.u30),
+      h('span', {}, '1 an ', refs.u1y)),
     h('div', { class: 'chart-box' }, refs.canvas),
     refs.msg,
     h('dl', { class: 'info' },
@@ -118,9 +121,12 @@ function updateCard(card, s, hours) {
   refs.uptime.textContent = fmtUptime(s.uptime);
   refs.latency.textContent = fmtLatency(s.latency);
   refs.checked.textContent = fmtAgo(s.checked_at);
+  refs.u30.textContent = fmtUptime(s.uptime_30d);
+  refs.u1y.textContent = fmtUptime(s.uptime_1y);
   refs.msg.textContent = s.message ?? '';
   refs.msg.title = s.message ?? '';
-  refs.target.textContent = s.type === 'tcp' ? `${s.target}:${s.port}` : s.target;
+  refs.target.textContent = s.type === 'tcp' ? `${s.target}:${s.port}`
+    : s.type === 'dns' ? `${s.target}:${s.port ?? 53} (${s.dns_query} ${s.dns_record_type})` : s.target;
   refs.target.title = refs.target.textContent;
   refs.ip.textContent = s.ip ? `${s.ip}${s.ssh_port !== 22 ? `:${s.ssh_port}` : ''}` : '—';
   refs.ipCopy.hidden = !s.ip;
@@ -266,15 +272,16 @@ const HINTS = {
   http: 'URL complète, ex : https://exemple.fr/health — en ligne si le code HTTP est < 400.',
   ping: 'IP ou nom d’hôte, ex : 192.168.1.10 — ping ICMP.',
   tcp: 'IP ou nom d’hôte + port, ex : 192.168.1.10 et 22.',
-  dns: 'Nom de domaine à résoudre, ex : exemple.fr.',
+  dns: 'IP ou nom du serveur DNS, ex : 192.168.1.53 — en ligne s’il répond à la requête de test (une réponse NXDOMAIN compte comme en ligne).',
 };
 
 function syncType() {
   const type = form.type.value;
-  form.querySelectorAll('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== type; });
+  form.querySelectorAll('[data-for]').forEach((el) => { el.hidden = !el.dataset.for.split(' ').includes(type); });
   form.port.required = type === 'tcp';
   $('#target-hint').textContent = HINTS[type];
-  form.target.placeholder = type === 'http' ? 'https://exemple.fr' : type === 'dns' ? 'exemple.fr' : '192.168.1.10';
+  form.target.placeholder = type === 'http' ? 'https://exemple.fr' : '192.168.1.10';
+  form.port.placeholder = type === 'dns' ? '53' : '';
 }
 form.type.addEventListener('change', syncType);
 
@@ -285,7 +292,7 @@ function openForm(s = null) {
   $('#form-title').textContent = s ? `Modifier « ${s.name} »` : 'Ajouter un service';
   form.querySelectorAll('[data-edit]').forEach((el) => { el.hidden = !s; });
   if (s) {
-    for (const k of ['name', 'type', 'target', 'port', 'dns_record_type', 'dns_expected', 'dns_server', 'link_url', 'interval_sec', 'ip', 'ssh_port', 'ssh_user']) {
+    for (const k of ['name', 'type', 'target', 'port', 'dns_query', 'dns_record_type', 'link_url', 'interval_sec', 'ip', 'ssh_port', 'ssh_user']) {
       if (s[k] != null) form[k].value = s[k];
     }
     form.is_public.checked = s.is_public;
@@ -307,8 +314,8 @@ form.addEventListener('submit', async (e) => {
   body.is_public = form.is_public.checked;
   body.clear_password = form.clear_password.checked;
   body.reset_fingerprint = form.reset_fingerprint.checked;
-  if (body.type !== 'tcp') body.port = '';
-  if (body.type !== 'dns') { body.dns_expected = ''; body.dns_server = ''; body.dns_record_type = ''; }
+  if (!['tcp', 'dns'].includes(body.type)) body.port = '';
+  if (body.type !== 'dns') { body.dns_query = ''; body.dns_record_type = ''; }
   try {
     if (editing) await api(`/api/admin/services/${editing.id}`, { method: 'PUT', body });
     else await api('/api/admin/services', { method: 'POST', body });
